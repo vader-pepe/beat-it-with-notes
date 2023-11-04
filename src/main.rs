@@ -1,54 +1,56 @@
-use raylib::{
-    ffi::{
-        BeginDrawing, ClearBackground, CloseWindow, DrawGrid, DrawRectangle, DrawRectangleLines,
-        EndDrawing, GetFrameTime, InitWindow, SetTargetFPS, WindowShouldClose,
-    },
-    prelude::Color,
-};
 use std::ffi::CString;
 
-const WINDOW_HEIGHT: i32 = 500;
+use rand::Rng;
+use raylib::{
+    ffi::{
+        CloseAudioDevice, InitAudioDevice, LoadMusicStream, LoadSound, PlayMusicStream, PlaySound,
+        StopMusicStream, UnloadMusicStream, UnloadSound, UpdateMusicStream,
+    },
+    prelude::*,
+};
+
+const WINDOW_HEIGHT: i32 = 600;
 const WINDOW_WIDTH: i32 = 500;
-const ROWS: i32 = 25;
-const COLS: i32 = 25;
-const CELL_WIDTH: i32 = WINDOW_WIDTH / COLS;
-const CELL_HEIGHT: i32 = WINDOW_HEIGHT / ROWS;
+const CELL_SIZE: i32 = 50;
+const MARGIN: i32 = 100;
+const BOARD_WIDTH: i32 = WINDOW_WIDTH - MARGIN * 2;
+const BOARD_HEIGHT: i32 = WINDOW_HEIGHT;
+const CIRCLE_DISPLAY_TIME: f32 = 1.0; // in seconds
+
+struct TimedCircle {
+    position: Vector2,
+    elapsed_time: f32,
+}
 
 fn main() {
+    let (mut rl, thread) = raylib::init()
+        .size(WINDOW_WIDTH, WINDOW_HEIGHT)
+        .title("Beat It with Notes!")
+        .build();
+    // Init audio device and stream music from file
     unsafe {
-        let title = CString::new("Beat it with Notes!").expect("Failed to create title string");
+        InitAudioDevice();
+    };
+    let file_name =
+        CString::new("Hollow-Knight-Remix-Grimm_Nightmare-King.ogg").expect("Failed to open file");
+    let music = unsafe { LoadMusicStream(file_name.as_ptr()) };
 
-        let _d_t = GetFrameTime() as i32;
-        InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, title.as_ptr());
-        SetTargetFPS(30);
-        let margin = 100;
-        let board_width = WINDOW_WIDTH - margin * 2;
-        let board_height = WINDOW_HEIGHT;
+    unsafe { PlayMusicStream(music) }
 
-        while !WindowShouldClose() {
-            BeginDrawing();
-            ClearBackground(Color::WHITE.into());
-            // Board
-            DrawRectangle(margin, 0, board_width, board_height, Color::RED.into());
-            let mut i = 0;
-            let mut j = 0;
-            while i < COLS {
-                while j < ROWS {
-                    DrawRectangleLines(
-                        i * CELL_WIDTH + margin,
-                        j * CELL_HEIGHT,
-                        CELL_WIDTH,
-                        CELL_HEIGHT,
-                        Color::BLACK.into(),
-                    );
-                    j = j + 1;
-                }
-                i = i + 1;
-            }
-
-            EndDrawing();
+    while !rl.window_should_close() {
+        if rl.is_key_down(KeyboardKey::KEY_SPACE) {
+            unsafe { UpdateMusicStream(music) }
         }
 
-        CloseWindow();
+        let delta_time = rl.get_frame_time();
+        let mut d = rl.begin_drawing(&thread);
+        d.clear_background(Color::WHITE);
+        d.draw_text("Press SPACE to play the sound!", 10, 10, 20, Color::BLACK);
+    }
+
+    unsafe {
+        StopMusicStream(music); // Stop music playing
+        UnloadMusicStream(music); // Unload music stream
+        CloseAudioDevice();
     }
 }
